@@ -84,7 +84,7 @@ RUN apk --update --no-cache add -t build-dependencies \
     nodejs \
     npm \
   && node --version \
-  && npm -- version \
+  && npm --version \
   && addgroup -g ${PGID} anonaddy \
   && adduser -D -h /var/www/anonaddy -u ${PUID} -G anonaddy -s /bin/sh -D anonaddy \
   && addgroup anonaddy opendkim \

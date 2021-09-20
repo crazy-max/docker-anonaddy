@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv bash
+# shellcheck shell=bash
 
 mkdir -p /etc/services.d/postfix
 cat > /etc/services.d/postfix/run <<EOL

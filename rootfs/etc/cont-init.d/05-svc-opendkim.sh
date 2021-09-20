@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv bash
+# shellcheck shell=bash
 
 DKIM_ENABLE=${DKIM_ENABLE:-false}
 DKIM_PRIVATE_KEY=/data/dkim/${ANONADDY_DOMAIN}.private
