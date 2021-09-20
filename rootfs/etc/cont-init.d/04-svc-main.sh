@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv bash
+# shellcheck shell=bash
 
 echo "DB migration"
 anonaddy migrate --no-interaction --force

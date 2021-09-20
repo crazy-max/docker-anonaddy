@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv sh
+# shellcheck shell=sh
 
 if [ -n "${PGID}" ] && [ "${PGID}" != "$(id -g anonaddy)" ]; then
   echo "Switching to PGID ${PGID}..."

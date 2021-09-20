@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv bash
+# shellcheck shell=bash
 
 DMARC_ENABLE=${DMARC_ENABLE:-false}
 

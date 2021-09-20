@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv bash
+# shellcheck shell=bash
 
 # From https://github.com/docker-library/mariadb/blob/master/docker-entrypoint.sh#L21-L41
 # usage: file_env VAR [DEFAULT]
@@ -17,7 +18,7 @@ file_env() {
   if [ "${!var:-}" ]; then
     val="${!var}"
   elif [ "${!fileVar:-}" ]; then
-    val="$(< "${!fileVar}")"
+    val="$(<"${!fileVar}")"
   fi
   export "$var"="$val"
   unset "$fileVar"
@@ -67,6 +68,8 @@ ANONADDY_BANDWIDTH_LIMIT=${ANONADDY_BANDWIDTH_LIMIT:-104857600}
 ANONADDY_NEW_ALIAS_LIMIT=${ANONADDY_NEW_ALIAS_LIMIT:-10}
 ANONADDY_ADDITIONAL_USERNAME_LIMIT=${ANONADDY_ADDITIONAL_USERNAME_LIMIT:-10}
 #ANONADDY_SIGNING_KEY_FINGERPRINT=${ANONADDY_SIGNING_KEY_FINGERPRINT:-your-signing-key-fingerprint}
+#ANONADDY_DKIM_SIGNING_KEY=${ANONADDY_DKIM_SIGNING_KEY:-dkim-signing-key}
+#ANONADDY_DKIM_SELECTOR=${ANONADDY_DKIM_SELECTOR:-default}
 
 MAIL_FROM_NAME=${MAIL_FROM_NAME:-AnonAddy}
 MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS:-anonaddy@${ANONADDY_DOMAIN}}
@@ -90,7 +93,7 @@ DMARC_MILTER_DEBUG=${DMARC_MILTER_DEBUG:-0}
 # Timezone
 echo "Setting timezone to ${TZ}..."
 ln -snf /usr/share/zoneinfo/${TZ} /etc/localtime
-echo ${TZ} > /etc/timezone
+echo ${TZ} >/etc/timezone
 
 # PHP
 echo "Init PHP extensions"
@@ -100,7 +103,7 @@ echo "Setting PHP-FPM configuration"
 sed -e "s/@MEMORY_LIMIT@/$MEMORY_LIMIT/g" \
   -e "s/@UPLOAD_MAX_SIZE@/$UPLOAD_MAX_SIZE/g" \
   -e "s/@CLEAR_ENV@/$CLEAR_ENV/g" \
-  /tpls/etc/php8/php-fpm.d/www.conf > /etc/php8/php-fpm.d/www.conf
+  /tpls/etc/php8/php-fpm.d/www.conf >/etc/php8/php-fpm.d/www.conf
 
 echo "Setting PHP INI configuration"
 sed -i "s|memory_limit.*|memory_limit = ${MEMORY_LIMIT}|g" /etc/php8/php.ini
@@ -109,7 +112,7 @@ sed -i "s|;date\.timezone.*|date\.timezone = ${TZ}|g" /etc/php8/php.ini
 # OpCache
 echo "Setting OpCache configuration"
 sed -e "s/@OPCACHE_MEM_SIZE@/$OPCACHE_MEM_SIZE/g" \
-  /tpls/etc/php8/conf.d/opcache.ini > /etc/php8/conf.d/opcache.ini
+  /tpls/etc/php8/conf.d/opcache.ini >/etc/php8/conf.d/opcache.ini
 
 # Nginx
 echo "Setting Nginx configuration"
@@ -117,7 +120,7 @@ sed -e "s#@UPLOAD_MAX_SIZE@#$UPLOAD_MAX_SIZE#g" \
   -e "s#@REAL_IP_FROM@#$REAL_IP_FROM#g" \
   -e "s#@REAL_IP_HEADER@#$REAL_IP_HEADER#g" \
   -e "s#@LOG_IP_VAR@#$LOG_IP_VAR#g" \
-  /tpls/etc/nginx/nginx.conf > /etc/nginx/nginx.conf
+  /tpls/etc/nginx/nginx.conf >/etc/nginx/nginx.conf
 
 if [ "$LISTEN_IPV6" != "true" ]; then
   sed -e '/listen \[::\]:/d' -i /etc/nginx/nginx.conf
@@ -137,47 +140,47 @@ chmod 700 /data/.gnupg
 
 echo "Checking database connection..."
 if [ -z "$DB_HOST" ]; then
-  >&2 echo "ERROR: DB_HOST must be defined"
+  echo >&2 "ERROR: DB_HOST must be defined"
   exit 1
 fi
 file_env 'DB_USERNAME'
 file_env 'DB_PASSWORD'
 if [ -z "$DB_PASSWORD" ]; then
-  >&2 echo "ERROR: Either DB_PASSWORD or DB_PASSWORD_FILE must be defined"
+  echo >&2 "ERROR: Either DB_PASSWORD or DB_PASSWORD_FILE must be defined"
   exit 1
 fi
 dbcmd="mysql -h ${DB_HOST} -P ${DB_PORT} -u "${DB_USERNAME}" "-p${DB_PASSWORD}""
 
 echo "Waiting ${DB_TIMEOUT}s for database to be ready..."
 counter=1
-while ! ${dbcmd} -e "show databases;" > /dev/null 2>&1; do
+while ! ${dbcmd} -e "show databases;" >/dev/null 2>&1; do
   sleep 1
   counter=$((counter + 1))
   if [ ${counter} -gt ${DB_TIMEOUT} ]; then
-    >&2 echo "ERROR: Failed to connect to database on $DB_HOST"
+    echo >&2 "ERROR: Failed to connect to database on $DB_HOST"
     exit 1
-  fi;
+  fi
 done
 echo "Database ready!"
 
 file_env 'APP_KEY'
 if [ -z "$APP_KEY" ]; then
-  >&2 echo "ERROR: Either APP_KEY or APP_KEY_FILE must be defined"
+  echo >&2 "ERROR: Either APP_KEY or APP_KEY_FILE must be defined"
   exit 1
 fi
 if [ -z "$ANONADDY_DOMAIN" ]; then
-  >&2 echo "ERROR: ANONADDY_DOMAIN must be defined"
+  echo >&2 "ERROR: ANONADDY_DOMAIN must be defined"
   exit 1
 fi
 file_env 'ANONADDY_SECRET'
 if [ -z "$ANONADDY_SECRET" ]; then
-  >&2 echo "ERROR: Either ANONADDY_SECRET or ANONADDY_SECRET_FILE must be defined"
+  echo >&2 "ERROR: Either ANONADDY_SECRET or ANONADDY_SECRET_FILE must be defined"
   exit 1
 fi
 file_env 'PUSHER_APP_SECRET'
 
 echo "Creating AnonAddy env file"
-cat > /var/www/anonaddy/.env <<EOL
+cat >/var/www/anonaddy/.env <<EOL
 APP_NAME=${APP_NAME}
 APP_ENV=production
 APP_KEY=${APP_KEY}
@@ -232,6 +235,8 @@ ANONADDY_BANDWIDTH_LIMIT=${ANONADDY_BANDWIDTH_LIMIT}
 ANONADDY_NEW_ALIAS_LIMIT=${ANONADDY_NEW_ALIAS_LIMIT}
 ANONADDY_ADDITIONAL_USERNAME_LIMIT=${ANONADDY_ADDITIONAL_USERNAME_LIMIT}
 ANONADDY_SIGNING_KEY_FINGERPRINT=${ANONADDY_SIGNING_KEY_FINGERPRINT}
+ANONADDY_DKIM_SIGNING_KEY=${ANONADDY_DKIM_SIGNING_KEY}
+ANONADDY_DKIM_SELECTOR=${ANONADDY_DKIM_SELECTOR}
 EOL
 chown anonaddy. /var/www/anonaddy/.env
 
@@ -245,7 +250,7 @@ if [ "$DKIM_ENABLE" = "true" ] && [ -f "$DKIM_PRIVATE_KEY" ]; then
   cp -f "${DKIM_PRIVATE_KEY}" "/var/db/dkim/${ANONADDY_DOMAIN}.private"
 
   echo "Setting OpenDKIM configuration"
-  cat > /etc/opendkim/opendkim.conf <<EOL
+  cat >/etc/opendkim/opendkim.conf <<EOL
 BaseDirectory         /var/spool/postfix/opendkim
 
 LogWhy                yes
@@ -273,27 +278,27 @@ SendReports           yes
 EOL
 
   echo "Setting OpenDKIM trusted hosts"
-  cat > /etc/opendkim/trusted.hosts <<EOL
+  cat >/etc/opendkim/trusted.hosts <<EOL
 127.0.0.1
 localhost
 *.${ANONADDY_DOMAIN}
 EOL
 
   echo "Setting OpenDKIM signing table"
-  cat > /etc/opendkim/signing.table <<EOL
+  cat >/etc/opendkim/signing.table <<EOL
 *@${ANONADDY_DOMAIN}    default._domainkey.${ANONADDY_DOMAIN}
 *@*.${ANONADDY_DOMAIN}    default._domainkey.${ANONADDY_DOMAIN}
 EOL
 
   echo "Setting OpenDKIM key table"
-  cat > /etc/opendkim/key.table <<EOL
+  cat >/etc/opendkim/key.table <<EOL
 default._domainkey.${ANONADDY_DOMAIN}    ${ANONADDY_DOMAIN}:default:/var/db/dkim/${ANONADDY_DOMAIN}.private
 EOL
 fi
 
 if [ "$DMARC_ENABLE" = "true" ]; then
   echo "Setting OpenDMARC configuration"
-  cat > /etc/opendmarc/opendmarc.conf <<EOL
+  cat >/etc/opendmarc/opendmarc.conf <<EOL
 BaseDirectory               /var/spool/postfix/opendmarc
 
 AuthservID                  OpenDMARC
@@ -333,7 +338,7 @@ if [ "$POSTFIX_DEBUG" = "true" ]; then
   POSTFIX_DEBUG_ARG=" -v"
 fi
 sed -i "s|^smtp.*inet.*|25 inet n - - - - smtpd${POSTFIX_DEBUG_ARG}|g" /etc/postfix/master.cf
-cat >> /etc/postfix/master.cf <<EOL
+cat >>/etc/postfix/master.cf <<EOL
 anonaddy unix - n n - - pipe
   flags=F user=anonaddy argv=php /var/www/anonaddy/artisan anonaddy:receive-email --sender=\${sender} --recipient=\${recipient} --local_part=\${user} --extension=\${extension} --domain=\${domain} --size=\${size}
 EOL
@@ -341,15 +346,14 @@ EOL
 echo "Setting Postfix main configuration"
 VBOX_DOMAINS=""
 IFS=","
-for domain in $ANONADDY_ALL_DOMAINS;
-do
+for domain in $ANONADDY_ALL_DOMAINS; do
   if [ -n "$VBOX_DOMAINS" ]; then VBOX_DOMAINS="${VBOX_DOMAINS},"; fi
   VBOX_DOMAINS="${VBOX_DOMAINS}${domain},unsubscribe.${domain}"
 done
 sed -i 's/compatibility_level.*/compatibility_level = 2/g' /etc/postfix/main.cf
 sed -i 's/inet_interfaces = localhost/inet_interfaces = all/g' /etc/postfix/main.cf
 sed -i 's/readme_directory.*/readme_directory = no/g' /etc/postfix/main.cf
-cat >> /etc/postfix/main.cf <<EOL
+cat >>/etc/postfix/main.cf <<EOL
 myhostname = ${ANONADDY_HOSTNAME}
 mydomain = ${ANONADDY_DOMAIN}
 alias_maps = hash:/etc/aliases
@@ -423,7 +427,7 @@ if [ "$DMARC_ENABLE" = "true" ]; then
 fi
 if [ -n "$SMTPD_MILTERS" ]; then
   echo "Setting Postfix milter configuration"
-  cat >> /etc/postfix/main.cf <<EOL
+  cat >>/etc/postfix/main.cf <<EOL
 
 # Milter configuration
 milter_default_action = accept
@@ -435,7 +439,7 @@ fi
 
 if [ "$POSTFIX_SMTPD_TLS" = "true" ]; then
   echo "Setting Postfix smtpd TLS configuration"
-  cat >> /etc/postfix/main.cf <<EOL
+  cat >>/etc/postfix/main.cf <<EOL
 
 # SMTPD
 smtpd_use_tls=yes
@@ -456,16 +460,16 @@ tls_preempt_cipherlist = yes
 tls_ssl_options = NO_COMPRESSION
 EOL
   if [ -n "$POSTFIX_SMTPD_TLS_CERT_FILE" ]; then
-    echo "smtpd_tls_cert_file=${POSTFIX_SMTPD_TLS_CERT_FILE}" >> /etc/postfix/main.cf
+    echo "smtpd_tls_cert_file=${POSTFIX_SMTPD_TLS_CERT_FILE}" >>/etc/postfix/main.cf
   fi
   if [ -n "$POSTFIX_SMTPD_TLS_KEY_FILE" ]; then
-    echo "smtpd_tls_key_file=${POSTFIX_SMTPD_TLS_KEY_FILE}" >> /etc/postfix/main.cf
+    echo "smtpd_tls_key_file=${POSTFIX_SMTPD_TLS_KEY_FILE}" >>/etc/postfix/main.cf
   fi
 fi
 
 if [ "$POSTFIX_SMTP_TLS" = "true" ]; then
   echo "Setting Postfix smtp TLS configuration"
-  cat >> /etc/postfix/main.cf <<EOL
+  cat >>/etc/postfix/main.cf <<EOL
 
 # SMTP
 smtp_tls_CApath = /etc/ssl/certs
@@ -484,7 +488,7 @@ fi
 
 if [ "$POSTFIX_RELAYHOST_AUTH_ENABLE" = "true" ]; then
   echo "Setting Postfix SASL configuration"
-  cat >> /etc/postfix/main.cf <<EOL
+  cat >>/etc/postfix/main.cf <<EOL
 
 smtp_sasl_auth_enable = yes
 smtp_sasl_password_maps = texthash:/etc/postfix/sasl_passwd
@@ -493,13 +497,13 @@ smtp_sasl_tls_security_options = noanonymous
 header_size_limit = 4096000
 EOL
 
-  cat >> /etc/postfix/sasl_passwd <<EOL
+  cat >>/etc/postfix/sasl_passwd <<EOL
 
 ${POSTFIX_RELAYHOST} ${POSTFIX_RELAYHOST_USERNAME}:${POSTFIX_RELAYHOST_PASSWORD}
 EOL
 
-chmod 600 /etc/postfix/sasl_passwd
-postmap /etc/postfix/sasl_passwd
+  chmod 600 /etc/postfix/sasl_passwd
+  postmap /etc/postfix/sasl_passwd
 
 fi
 
@@ -507,14 +511,13 @@ echo "Creating Postfix virtual alias domains and subdomains configuration"
 QUERY_USERS=""
 QUERY_USERNAMES=""
 IFS=","
-for domain in $ANONADDY_ALL_DOMAINS;
-do
+for domain in $ANONADDY_ALL_DOMAINS; do
   if [ -n "$QUERY_USERS" ]; then QUERY_USERS="${QUERY_USERS} OR "; fi
   if [ -n "$QUERY_USERNAMES" ]; then QUERY_USERNAMES="${QUERY_USERNAMES} OR "; fi
   QUERY_USERS="${QUERY_USERS}CONCAT(username, '.${domain}') = '%s'"
   QUERY_USERNAMES="${QUERY_USERNAMES}CONCAT(additional_usernames.username, '.${domain}') = '%s'"
 done
-cat > /etc/postfix/mysql-virtual-alias-domains-and-subdomains.cf <<EOL
+cat >/etc/postfix/mysql-virtual-alias-domains-and-subdomains.cf <<EOL
 user = ${DB_USERNAME}
 password = ${DB_PASSWORD}
 hosts = ${DB_HOST}:${DB_PORT}
@@ -525,7 +528,7 @@ chmod o= /etc/postfix/mysql-virtual-alias-domains-and-subdomains.cf
 chgrp postfix /etc/postfix/mysql-virtual-alias-domains-and-subdomains.cf
 
 echo "Creating Postfix recipient access configuration"
-cat > /etc/postfix/mysql-recipient-access.cf <<EOL
+cat >/etc/postfix/mysql-recipient-access.cf <<EOL
 user = ${DB_USERNAME}
 password = ${DB_PASSWORD}
 hosts = ${DB_HOST}:${DB_PORT}
@@ -541,8 +544,7 @@ postconf myhostname
 echo "Creating check_access stored procedure"
 QUERY_USERNAMES=""
 IFS=","
-for domain in $ANONADDY_ALL_DOMAINS;
-do
+for domain in $ANONADDY_ALL_DOMAINS; do
   if [ -n "$QUERY_USERNAMES" ]; then QUERY_USERNAMES="${QUERY_USERNAMES},"; fi
   QUERY_USERNAMES="${QUERY_USERNAMES}CONCAT(username, '.${domain}')"
 done

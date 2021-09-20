@@ -1,4 +1,5 @@
 #!/usr/bin/with-contenv sh
+# shellcheck shell=sh
 
 # Unset sensitive vars
 unset APP_KEY \
