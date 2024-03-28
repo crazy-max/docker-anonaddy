@@ -2,7 +2,7 @@ name: addy
 
 services:
   traefik:
-    image: traefik:2.5
+    image: traefik:2.11
     container_name: traefik
     command:
       - "--global.checknewversion=false"
@@ -36,10 +36,10 @@ services:
     restart: always
 
   db:
-    image: mariadb:10.5
+    image: mariadb:11.3
     container_name: addy_db
     command:
-      - "mysqld"
+      - "mariadbd"
       - "--character-set-server=utf8mb4"
       - "--collation-server=utf8mb4_unicode_ci"
     volumes:
@@ -52,7 +52,7 @@ services:
     restart: always
 
   redis:
-    image: redis:4.0-alpine
+    image: redis:7.2-alpine
     container_name: addy_redis
     restart: always
 
