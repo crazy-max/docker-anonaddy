@@ -12,10 +12,14 @@ if [ ! -f "$DKIM_PRIVATE_KEY" ]; then
   echo "WRN: $DKIM_PRIVATE_KEY not found. Rspamd service disabled."
   exit 0
 fi
+if [ -z "$ANONADDY_DKIM_SELECTOR" ]; then
+  export ANONADDY_DKIM_SELECTOR="default"
+  echo "INFO: DKIM selector not set, using default."
+fi
 
 echo "Copying DKIM private key for Rspamd"
 mkdir -p /var/lib/rspamd/dkim
-cp -f "${DKIM_PRIVATE_KEY}" "/var/lib/rspamd/dkim/${ANONADDY_DOMAIN}.default.key"
+cp -f "${DKIM_PRIVATE_KEY}" "/var/lib/rspamd/dkim/${ANONADDY_DOMAIN}.${ANONADDY_DKIM_SELECTOR}.key"
 
 echo "Setting Rspamd dkim_signing.conf"
 cat >/etc/rspamd/local.d/dkim_signing.conf <<EOL
@@ -25,7 +29,7 @@ signing_table = [
 ];
 
 key_table = [
-"${ANONADDY_DOMAIN} ${ANONADDY_DOMAIN}:default:/var/lib/rspamd/dkim/${ANONADDY_DOMAIN}.default.key",
+"${ANONADDY_DOMAIN} ${ANONADDY_DOMAIN}:${ANONADDY_DKIM_SELECTOR}:/var/lib/rspamd/dkim/${ANONADDY_DOMAIN}.${ANONADDY_DKIM_SELECTOR}.key",
 ];
 
 use_domain = "envelope";
