@@ -98,7 +98,6 @@ smtpd_recipient_restrictions =
     reject_rhsbl_helo ${DBL_DOMAIN}=127.0.1.[2..99],
     reject_rhsbl_reverse_client ${DBL_DOMAIN}=127.0.1.[2..99],
     warn_if_reject reject_rbl_client ${ZEN_DOMAIN}=127.255.255.[1..255],
-    reject_rbl_client dul.dnsbl.sorbs.net
 
 # Block clients that speak too early.
 smtpd_data_restrictions = reject_unauth_pipelining
