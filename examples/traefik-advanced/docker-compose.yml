@@ -1,0 +1,239 @@
+version: '3.5'
+services:
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: dockerproxy
+    environment:
+      # Feel free to try with less
+      - "CONTAINERS=1"
+      - "CONTAINERS_CREATE=1"
+      - "CONTAINERS_START=1"
+      - "CONTAINERS_UPDATE=1"
+      - "CONTAINERS_DELETE=1"
+      - "IMAGES=1"
+      - "IMAGES_DELETE=1"
+      - "POST=1"
+      - "DELETE=1"
+      - "ALLOW_RESTARTS=1"
+      - "EXEC=1"
+      - "NETWORKS=1"
+      - "INFO=1"
+    ports:
+      - '2375:2375'
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - dockerproxy
+    restart: always
+
+  traefik:
+    image: traefik:2.6
+    container_name: traefik
+    command:
+      - "--global.checknewversion=false"
+      - "--global.sendanonymoususage=false"
+      - "--log=true"
+      - "--log.level=INFO"
+      - "--entrypoints.http=true"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.http.http.redirections.entrypoint.to=https"
+      - "--entrypoints.http.http.redirections.entrypoint.scheme=https"
+      - "--entrypoints.https=true"
+      - "--entrypoints.https.address=:443" 
+      #- "--certificatesresolvers.dnschallenge.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"  # <-- You might want to use this at first
+      - "--certificatesresolvers.dnschallenge.acme.dnschallenge=true"
+      - "--certificatesresolvers.dnschallenge.acme.storage=acme.json"
+      - "--certificatesresolvers.dnschallenge.acme.keyType=EC384"
+      - "--certificatesresolvers.dnschallenge.acme.email=postmaster@example.com"  # <-- REPLACE
+      - "--certificatesresolvers.dnschallenge.acme.dnschallenge.provider=namedotcom"  # <-- REPLACE, see https://doc.traefik.io/traefik/https/acme/#providers
+      - "--providers.file.directory=/config"
+      - "--providers.file.watch=true"
+      - "--providers.docker"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=tcp://dockerproxy:2375"
+      - "--providers.docker.constraints=Label(`traefik.constraint-label`, `cloud-public`)"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=anonaddy_cloud-public"
+      - "traefik.constraint-label=cloud-public"
+    environment:
+      - "NAMECOM_USERNAME_FILE=/run/secrets/namedotcom_username"  # <-- REPLACE, depends on your chosen DNS Challenge provider
+      - "NAMECOM_API_TOKEN_FILE=/run/secrets/namedotcom_api_token"  # <-- REPLACE, depends on your chosen DNS Challenge provider
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    networks:
+      cloud-public:
+        ipv4_address: 172.21.0.5  # <-- Customize as desired
+      cloud-edge:
+      dockerproxy:
+    depends_on:
+      - dockerproxy
+    secrets:
+      # Change these to suit your DNS provider
+      - 
+       source: exampledotcom_NAMEDOTCOM_USERNAME
+       target: /run/secrets/namedotcom_username
+      - 
+       source: exampledotcom_NAMEDOTCOM_API_TOKEN
+       target: /run/secrets/namedotcom_api_token
+    volumes:
+      - "./letsencrypt/acme.json:/acme.json"
+      - "/home/docker/anonaddy/config/:/config"  # <-- REPLACE, point to the correct directory
+    restart: always
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    depends_on:
+      - dockerproxy
+      - traefik
+    labels:
+      - "traefik.constraint-label=cloud-public"
+    environment:
+      - "DOCKER_HOST=tcp://dockerproxy:2375"
+      - "WATCHTOWER_LABEL_ENABLE=true"
+      - "WATCHTOWER_CLEANUP=true"
+      - "WATCHTOWER_INCLUDE_RESTARTING=true"
+      - "WATCHTOWER_POLL_INTERVAL=6400"  # <-- Set this to the value you need
+      - "WATCHTOWER_NOTIFICATIONS=gotify"  # <-- This example uses gotify, but there are other options
+      - "WATCHTOWER_NOTIFICATION_GOTIFY_URL=https://push.domain.com/"  # <-- REPLACE, must point to a gotify server
+      - "WATCHTOWER_NOTIFICATION_GOTIFY_TOKEN="  # <-- INSERT
+    networks:
+      dockerproxy:
+      cloud-public:
+        ipv4_address: 172.21.0.7  # <-- Customize as desired
+    restart: unless-stopped
+
+  certdumper:
+    image: humenius/traefik-certs-dumper:latest
+    depends_on:
+      - dockerproxy
+      - traefik
+    command: --restart-containers anonaddy
+    volumes:
+      - "./letsencrypt:/traefik:ro"
+      - "./data/output:/output:rw"
+    environment:
+      - "DOCKER_HOST=dockerproxy:2375"
+      - "DOMAIN=mail.example.com"  # <-- REPLACE
+      - "OVERRIDE_UID=1000"
+      - "OVERRIDE_GID=1000"
+    networks:
+      - dockerproxy
+    restart: always
+
+  anonaddy:
+    image: anonaddy/anonaddy:latest
+    depends_on:
+      - db
+      - redis
+    container_name: anonaddy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.crowdsec-bouncer.forwardauth.address=http://bouncer:8080/api/v1/forwardAuth"
+      #- "traefik.http.middlewares.crowdsec-bouncer.forwardauth.trustForwardHeader=true"
+
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.constraint-label=cloud-public"
+    env_file:
+      - "./anonaddy.env"
+    environment:
+      - "DB_HOST=db"
+      - "DB_DATABASE=${MYSQL_DATABASE}"
+      - "DB_USERNAME=${MYSQL_USER}"
+      - "DB_PASSWORD=${MYSQL_PASSWORD}"
+      - "REDIS_HOST=redis"
+    ports:
+      - '25:25'
+    networks:
+      cloud-public:
+        ipv4_address: 172.21.0.8  # <-- Change as desired
+    volumes:
+      - "./data:/data"
+    restart: unless-stopped
+
+  crowdsec:
+    image: crowdsecurity/crowdsec:v1.3.0
+    container_name: "crowdsec-anonaddy"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.constraint-label=cloud-public"
+    environment:
+      COLLECTIONS: "crowdsecurity/nginx crowdsecurity/postfix"
+      GID: "${GID-1000}"
+      #DOCKER_API_VERSION: "1.41"
+    depends_on:
+      - traefik
+      - dockerproxy
+    volumes:
+      - crowdsec-db-anonaddy:/var/lib/crowdsec/data/
+      - crowdsec-config-anonaddy:/etc/crowdsec/
+    networks:
+      dockerproxy:
+      cloud-public:
+        ipv4_address: 172.21.0.6  # <-- Change as desired
+        priority: 100
+
+  bouncer:
+    image: fbonalair/traefik-crowdsec-bouncer:0.1.1
+    container_name: "bouncer-anonaddy"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.constraint-label=cloud-public"
+    environment:
+      - "CROWDSEC_BOUNCER_API_KEY="  # <-- INSERT
+      - "CROWDSEC_AGENT_HOST=crowdsec:8080"
+      - "GIN_MODE=release"
+    networks:
+      cloud-public:
+        ipv4_address: 172.21.0.3  # <-- Change as desired
+
+  db:
+    image: mariadb:10.5
+    container_name: anonaddy_db
+    environment:
+      - "MYSQL_ALLOW_EMPTY_PASSWORD=yes"
+      - "MYSQL_DATABASE"
+      - "MYSQL_PASSWORD"
+      - "MYSQL_USER"
+    labels:
+      - "traefik.constraint-label=cloud-public"
+    networks:
+      cloud-public:
+        ipv4_address: 172.21.0.2  # <-- Change as desired
+    volumes:
+      - "./db:/var/lib/mysql"
+    restart: unless-stopped
+
+  redis:
+    image: redis:4.0-alpine
+    container_name: anonaddy_redis
+    labels:
+      - "traefik.constraint-label=cloud-public"
+    networks:
+      cloud-public:
+        ipv4_address: 172.21.0.4  # <-- Change as desired
+    restart: unless-stopped
+
+secrets:
+  exampledotcom_NAMEDOTCOM_USERNAME:  # <-- REPLACE
+    file: exampledotcom_namedotcom_username.txt  # <-- REPLACE and CREATE FILE
+  exampledotcom_NAMEDOTCOM_API_TOKEN:  # <-- REPLACE
+    file: exampledotcom_namedotcom_api_token.txt  # <-- REPLACE and CREATE FILE
+networks:
+  dockerproxy:
+  cloud-public:
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16  # <-- Change as desired
+  cloud-edge:
+volumes:
+  crowdsec-db-anonaddy:
+  crowdsec-config-anonaddy:

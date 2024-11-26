@@ -1,0 +1,65 @@
+http:
+  routers:
+    anonaddy:
+      service: anonaddy
+      entrypoints:
+        - https
+      rule: "Host(`anonaddy.example.com`)"
+      middlewares:
+        - crowdsec-bouncer
+      tls:
+        certResolver: dnschallenge
+        domains:
+          - main: "example.com"
+            sans:
+              - "example.com"
+              - "anonaddy.example.com"
+              - "www.example.com"
+    rspamd:
+      service: rspamd
+      entrypoints:
+        - https
+      rule: "Host(`spam.example.com`)"
+      middlewares:
+        - crowdsec-bouncer
+      tls:
+        certResolver: dnschallenge
+        domains:
+          - main: "spam.example.com"
+            sans:
+              - "spam.example.com"
+  middlewares:
+    crowdsec-bouncer:
+      forwardAuth:
+        address: "http://bouncer:8080/api/v1/forwardAuth"
+    redirect-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+    default-middlewares:
+      chain:
+        middlewares:
+          - default-headers-https@file
+          - default-compress@file
+    default-headers-https:
+      headers:
+        customBrowserXSSValue: "0"
+        contentTypeNosniff: true
+        customResponseHeaders:
+          Server: ""
+        forceSTSHeader: true
+        frameDeny: true
+        stsSeconds: 31536000
+        stsPreload: true
+        stsIncludeSubdomains: true
+    default-compress:
+      compress: {}
+  services:
+    anonaddy:
+      loadbalancer:
+        servers:
+          - url: http://172.21.0.8:8000
+    rspamd:
+      loadbalancer:
+        servers:
+          - url: http://172.21.0.8:11334
