@@ -18,22 +18,22 @@ mkdir -p /data/config
 if [ ! -L /var/www/anonaddy/.config ]; then
   ln -sf /data/config /var/www/anonaddy/.config
 fi
-chown -h anonaddy. /var/www/anonaddy/config
-chown -R anonaddy. /data/config
+chown -h anonaddy:anonaddy /var/www/anonaddy/config
+chown -R anonaddy:anonaddy /data/config
 mkdir -p /data/storage
 if [ ! -L /var/www/anonaddy/storage ]; then
   cp -Rf /var/www/anonaddy/storage /data
   rm -rf /var/www/anonaddy/storage
   ln -sf /data/storage /var/www/anonaddy/storage
 fi
-chown -h anonaddy. /var/www/anonaddy/storage
-chown -R anonaddy. /data/storage
+chown -h anonaddy:anonaddy /var/www/anonaddy/storage
+chown -R anonaddy:anonaddy /data/storage
 mkdir -p /data/.gnupg
 if [ ! -L /var/www/anonaddy/.gnupg ]; then
   ln -sf /data/.gnupg /var/www/anonaddy/.gnupg
 fi
-chown -h anonaddy. /var/www/anonaddy/.gnupg
-chown -R anonaddy. /data/.gnupg
+chown -h anonaddy:anonaddy /var/www/anonaddy/.gnupg
+chown -R anonaddy:anonaddy /data/.gnupg
 chmod 700 /data/.gnupg
 
 echo "Checking database connection..."
@@ -45,7 +45,7 @@ if [ -z "$DB_PASSWORD" ]; then
   echo >&2 "ERROR: Either DB_PASSWORD or DB_PASSWORD_FILE must be defined"
   exit 1
 fi
-dbcmd="mysql -h ${DB_HOST} -P ${DB_PORT} -u "${DB_USERNAME}" "-p${DB_PASSWORD}""
+dbcmd="mariadb -h ${DB_HOST} -P ${DB_PORT} -u "${DB_USERNAME}" "-p${DB_PASSWORD}""
 
 echo "Waiting ${DB_TIMEOUT}s for database to be ready..."
 counter=1

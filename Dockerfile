@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 ARG ANONADDY_VERSION=1.3.0
-ARG ALPINE_VERSION=3.18
+ARG ALPINE_VERSION=3.21
 
 FROM crazymax/yasu:latest AS yasu
 FROM crazymax/alpine-s6:${ALPINE_VERSION}-2.2.0.3
@@ -18,35 +18,35 @@ RUN apk --no-cache add \
     mysql-client \
     nginx \
     openssl \
-    php82 \
-    php82-cli \
-    php82-ctype \
-    php82-curl \
-    php82-dom \
-    php82-fileinfo \
-    php82-fpm \
-    php82-gd \
-    php82-gmp \
-    php82-iconv \
-    php82-intl \
-    php82-json \
-    php82-mbstring \
-    php82-opcache \
-    php82-openssl \
-    php82-pdo \
-    php82-pdo_mysql \
-    php82-pecl-imagick \
-    php82-phar \
-    php82-redis \
-    php82-session \
-    php82-simplexml \
-    php82-sodium \
-    php82-tokenizer \
-    php82-xml \
-    php82-xmlreader \
-    php82-xmlwriter \
-    php82-zip \
-    php82-zlib \
+    php83 \
+    php83-cli \
+    php83-ctype \
+    php83-curl \
+    php83-dom \
+    php83-fileinfo \
+    php83-fpm \
+    php83-gd \
+    php83-gmp \
+    php83-iconv \
+    php83-intl \
+    php83-json \
+    php83-mbstring \
+    php83-opcache \
+    php83-openssl \
+    php83-pdo \
+    php83-pdo_mysql \
+    php83-pecl-imagick \
+    php83-phar \
+    php83-redis \
+    php83-session \
+    php83-simplexml \
+    php83-sodium \
+    php83-tokenizer \
+    php83-xml \
+    php83-xmlreader \
+    php83-xmlwriter \
+    php83-zip \
+    php83-zlib \
     postfix \
     postfix-mysql \
     rspamd \
@@ -55,7 +55,6 @@ RUN apk --no-cache add \
     shadow \
     tar \
     tzdata \
-  && ln -s /usr/bin/php82 /usr/bin/php \
   && cp /etc/postfix/master.cf /etc/postfix/master.cf.orig \
   && cp /etc/postfix/main.cf /etc/postfix/main.cf.orig \
   && apk --no-cache add -t build-dependencies \
@@ -65,12 +64,12 @@ RUN apk --no-cache add \
     gpgme-dev \
     libtool \
     pcre-dev \
-    php82-dev \
-    php82-pear \
-  && pecl82 install gnupg \
-  && echo "extension=gnupg.so" > /etc/php82/conf.d/60_gnupg.ini \
-  && pecl82 install mailparse \
-  && echo "extension=mailparse.so" > /etc/php82/conf.d/60_mailparse.ini \
+    php83-dev \
+    php83-pear \
+  && pecl83 install gnupg \
+  && echo "extension=gnupg.so" > /etc/php83/conf.d/60_gnupg.ini \
+  && pecl83 install mailparse \
+  && echo "extension=mailparse.so" > /etc/php83/conf.d/60_mailparse.ini \
   && apk del build-dependencies \
   && rm -rf /tmp/* /var/www/*
 
@@ -97,11 +96,11 @@ RUN apk --no-cache add -t build-dependencies \
   && git init . && git remote add origin "https://github.com/anonaddy/anonaddy.git" \
   && git fetch --depth 1 origin "v${ANONADDY_VERSION}" && git checkout -q FETCH_HEAD \
   && composer install --optimize-autoloader --no-dev --no-interaction --no-ansi --ignore-platform-req=php-64bit \
-  && chown -R anonaddy. /var/www/anonaddy \
+  && chown -R anonaddy:anonaddy /var/www/anonaddy \
   && npm ci --ignore-scripts \
   && APP_URL=https://addy-sh.test npm run production \
   && npm prune --production \
-  && chown -R nobody.nogroup /var/www/anonaddy \
+  && chown -R nobody:nogroup /var/www/anonaddy \
   && apk del build-dependencies \
   && rm -rf /root/.composer \
     /root/.config \

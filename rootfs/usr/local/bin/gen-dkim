@@ -17,4 +17,4 @@ echo "generating private and storing in ${DKIM_PRIVATE_KEY}"
 echo "generating DNS TXT record with public key and storing it in /data/dkim/${ANONADDY_DOMAIN}.txt"
 echo ""
 rspamadm dkim_keygen -s "${ANONADDY_DKIM_SELECTOR}" -b 2048 -d "${ANONADDY_DOMAIN}" -k "${DKIM_PRIVATE_KEY}" | tee -a "/data/dkim/${ANONADDY_DOMAIN}.txt"
-chown -R anonaddy. /data/dkim
+chown -R anonaddy:anonaddy /data/dkim

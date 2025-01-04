@@ -8,13 +8,13 @@ mkdir -p /data \
   /data/postfix/queue \
   /var/run/nginx \
   /var/run/php-fpm
-chown anonaddy. /data
-chown -R anonaddy. \
+chown anonaddy:anonaddy /data
+chown -R anonaddy:anonaddy \
   /data/dkim \
   /tpls \
   /var/lib/nginx \
   /var/log/nginx \
-  /var/log/php82 \
+  /var/log/php83 \
   /var/run/nginx \
   /var/run/php-fpm \
   /var/www/anonaddy/bootstrap/cache \
