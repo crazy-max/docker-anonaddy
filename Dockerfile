@@ -84,7 +84,7 @@ ARG ANONADDY_VERSION
 RUN <<EOT
   set -ex
   composer install --optimize-autoloader --no-dev --no-interaction --no-ansi --ignore-platform-req=php-64bit
-  npm ci --ignore-scripts
+  npm ci --ignore-scripts --verbose
   APP_URL=https://addy-sh.test npm run production
   npm prune --production
   rm -rf /var/www/anonaddy/node_modules
