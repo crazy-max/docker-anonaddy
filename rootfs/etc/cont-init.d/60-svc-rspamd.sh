@@ -15,10 +15,10 @@ fi
 
 # Init
 mkdir -p -m o-rwx /var/run/rspamd
-chown rspamd. /var/run/rspamd
+chown rspamd:rspamd /var/run/rspamd
 
 # Fix perms
-chown -R rspamd. /etc/rspamd /var/lib/rspamd
+chown -R rspamd:rspamd /etc/rspamd /var/lib/rspamd
 
 # Create service
 mkdir -p /etc/services.d/rspamd

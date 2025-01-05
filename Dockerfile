@@ -1,12 +1,14 @@
 # syntax=docker/dockerfile:1
 
 ARG ANONADDY_VERSION=1.3.0
-ARG ALPINE_VERSION=3.18
+ARG ALPINE_VERSION=3.21
 
-FROM crazymax/yasu:latest AS yasu
-FROM crazymax/alpine-s6:${ALPINE_VERSION}-2.2.0.3
+FROM --platform=$BUILDPLATFORM scratch AS src
+ARG ANONADDY_VERSION
+ADD "https://github.com/anonaddy/anonaddy.git#v${ANONADDY_VERSION}" .
 
-COPY --from=yasu / /
+FROM crazymax/alpine-s6:${ALPINE_VERSION}-2.2.0.3 AS base
+COPY --from=crazymax/yasu:latest / /
 RUN apk --no-cache add \
     bash \
     ca-certificates \
@@ -18,35 +20,35 @@ RUN apk --no-cache add \
     mysql-client \
     nginx \
     openssl \
-    php82 \
-    php82-cli \
-    php82-ctype \
-    php82-curl \
-    php82-dom \
-    php82-fileinfo \
-    php82-fpm \
-    php82-gd \
-    php82-gmp \
-    php82-iconv \
-    php82-intl \
-    php82-json \
-    php82-mbstring \
-    php82-opcache \
-    php82-openssl \
-    php82-pdo \
-    php82-pdo_mysql \
-    php82-pecl-imagick \
-    php82-phar \
-    php82-redis \
-    php82-session \
-    php82-simplexml \
-    php82-sodium \
-    php82-tokenizer \
-    php82-xml \
-    php82-xmlreader \
-    php82-xmlwriter \
-    php82-zip \
-    php82-zlib \
+    php83 \
+    php83-cli \
+    php83-ctype \
+    php83-curl \
+    php83-dom \
+    php83-fileinfo \
+    php83-fpm \
+    php83-gd \
+    php83-gmp \
+    php83-iconv \
+    php83-intl \
+    php83-json \
+    php83-mbstring \
+    php83-opcache \
+    php83-openssl \
+    php83-pdo \
+    php83-pdo_mysql \
+    php83-pecl-imagick \
+    php83-phar \
+    php83-redis \
+    php83-session \
+    php83-simplexml \
+    php83-sodium \
+    php83-tokenizer \
+    php83-xml \
+    php83-xmlreader \
+    php83-xmlwriter \
+    php83-zip \
+    php83-zlib \
     postfix \
     postfix-mysql \
     rspamd \
@@ -55,7 +57,6 @@ RUN apk --no-cache add \
     shadow \
     tar \
     tzdata \
-  && ln -s /usr/bin/php82 /usr/bin/php \
   && cp /etc/postfix/master.cf /etc/postfix/master.cf.orig \
   && cp /etc/postfix/main.cf /etc/postfix/main.cf.orig \
   && apk --no-cache add -t build-dependencies \
@@ -65,15 +66,33 @@ RUN apk --no-cache add \
     gpgme-dev \
     libtool \
     pcre-dev \
-    php82-dev \
-    php82-pear \
-  && pecl82 install gnupg \
-  && echo "extension=gnupg.so" > /etc/php82/conf.d/60_gnupg.ini \
-  && pecl82 install mailparse \
-  && echo "extension=mailparse.so" > /etc/php82/conf.d/60_mailparse.ini \
+    php83-dev \
+    php83-pear \
+  && pecl83 install gnupg \
+  && echo "extension=gnupg.so" > /etc/php83/conf.d/60_gnupg.ini \
+  && pecl83 install mailparse \
+  && echo "extension=mailparse.so" > /etc/php83/conf.d/60_mailparse.ini \
+  && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer \
   && apk del build-dependencies \
   && rm -rf /tmp/* /var/www/*
 
+FROM base AS build
+RUN apk --no-cache add nodejs npm
+WORKDIR /var/www/anonaddy
+COPY --from=src / .
+ARG ANONADDY_VERSION
+RUN <<EOT
+  set -ex
+  composer install --optimize-autoloader --no-dev --no-interaction --no-ansi --ignore-platform-req=php-64bit
+  npm ci --ignore-scripts --verbose
+  APP_URL=https://addy-sh.test npm run production
+  npm prune --production
+  rm -rf /var/www/anonaddy/node_modules
+  chown -R nobody:nogroup /var/www/anonaddy
+EOT
+
+FROM base
+COPY --from=build /var/www/anonaddy /var/www/anonaddy
 ARG ANONADDY_VERSION
 ENV ANONADDY_VERSION=$ANONADDY_VERSION \
   S6_BEHAVIOUR_IF_STAGE2_FAILS="2" \
@@ -81,35 +100,9 @@ ENV ANONADDY_VERSION=$ANONADDY_VERSION \
   TZ="UTC" \
   PUID="1000" \
   PGID="1000"
-
-WORKDIR /var/www/anonaddy
-RUN apk --no-cache add -t build-dependencies \
-    git \
-    nodejs \
-    npm \
-  && node --version \
-  && npm --version \
-  && addgroup -g ${PGID} anonaddy \
+RUN addgroup -g ${PGID} anonaddy \
   && adduser -D -h /var/www/anonaddy -u ${PUID} -G anonaddy -s /bin/sh -D anonaddy \
-  && addgroup anonaddy mail \
-  && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer \
-  && git config --global --add safe.directory /var/www/anonaddy \
-  && git init . && git remote add origin "https://github.com/anonaddy/anonaddy.git" \
-  && git fetch --depth 1 origin "v${ANONADDY_VERSION}" && git checkout -q FETCH_HEAD \
-  && composer install --optimize-autoloader --no-dev --no-interaction --no-ansi --ignore-platform-req=php-64bit \
-  && chown -R anonaddy. /var/www/anonaddy \
-  && npm ci --ignore-scripts \
-  && APP_URL=https://addy-sh.test npm run production \
-  && npm prune --production \
-  && chown -R nobody.nogroup /var/www/anonaddy \
-  && apk del build-dependencies \
-  && rm -rf /root/.composer \
-    /root/.config \
-    /root/.npm \
-    /var/www/anonaddy/.git \
-    /var/www/anonaddy/node_modules \
-    /tmp/*
-
+  && addgroup anonaddy mail
 COPY rootfs /
 
 EXPOSE 25 8000 11334
