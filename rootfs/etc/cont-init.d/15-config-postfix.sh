@@ -166,8 +166,17 @@ smtp_tls_mandatory_ciphers = high
 smtp_tls_ciphers = high
 smtp_tls_mandatory_exclude_ciphers = MD5, DES, ADH, RC4, PSD, SRP, 3DES, eNULL, aNULL
 smtp_tls_exclude_ciphers = MD5, DES, ADH, RC4, PSD, SRP, 3DES, eNULL, aNULL
+EOL
+  if [ "$POSTFIX_RELAY_ENCRYPTION" = "SSL"]; then
+    cat >>/etc/postfix/main.cf <<EOL
+smtp_tls_wrappermode = yes
+smtp_tls_security_level = encrypt
+EOL
+  else
+    cat >>/etc/postfix/main.cf <<EOL
 smtp_tls_security_level = may
 EOL
+  fi
 fi
 
 if [ "$POSTFIX_RELAYHOST_AUTH_ENABLE" = "true" ]; then
